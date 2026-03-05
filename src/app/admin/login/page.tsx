@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useYTWallah } from '@/contexts/YTWallahContext';
-import { Shield, Lock, Mail, Play, Eye, EyeOff } from 'lucide-react';
+import { Shield, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -110,9 +111,9 @@ export default function AdminLoginPage() {
           </form>
 
           <div className="mt-6 pt-4 border-t border-white/5 text-center">
-            <a href="/" className="text-sm text-purple-400 hover:text-purple-300 transition-colors">
+            <Link href="/" className="text-sm text-purple-400 hover:text-purple-300 transition-colors">
               ← Back to YT Wallah
-            </a>
+            </Link>
           </div>
         </div>
 
