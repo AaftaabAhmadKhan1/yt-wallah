@@ -38,6 +38,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# prisma
+prisma/dev.db
+prisma/dev.db-journal
+dev.db
+dev.db-journal
+src/generated/
+
 # Docker
 docker-compose.override.yml
 
@@ -53,3 +60,5 @@ docker-compose.override.yml
 .DS_Store
 Thumbs.db
 node_modules
+
+/src/generated/prisma

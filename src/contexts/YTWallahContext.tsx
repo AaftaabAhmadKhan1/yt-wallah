@@ -1,17 +1,19 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
-  Channel, Batch, Video, Announcement, SiteSettings, generateId,
+  Channel, Batch, Video, Announcement, SiteSettings,
 } from '@/data/types';
 import {
   defaultSiteSettings, defaultChannels, defaultBatches, defaultVideos, defaultAnnouncements,
-  getSiteSettings, saveSiteSettings,
-  getChannels, saveChannels,
-  getBatches, saveBatches,
-  getVideos, saveVideos,
-  getAnnouncements, saveAnnouncements,
 } from '@/data/store';
+
+// ── API helpers ───────────────────────────────────────
+async function api<T>(url: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
 
 interface YTWallahContextType {
   // Data
@@ -68,75 +70,94 @@ export function YTWallahProvider({ children }: { children: ReactNode }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from database on mount
   useEffect(() => {
     setMounted(true);
-    setChannels(getChannels());
-    setBatches(getBatches());
-    setVideos(getVideos());
-    setAnnouncements(getAnnouncements());
-    setSiteSettings(getSiteSettings());
+    // Fetch all data from API routes (backed by SQLite)
+    api<Channel[]>('/api/channels').then(data => { if (data.length) setChannels(data); }).catch(() => {});
+    api<Batch[]>('/api/batches').then(data => { if (data.length) setBatches(data); }).catch(() => {});
+    api<Video[]>('/api/videos').then(data => { if (data.length) setVideos(data); }).catch(() => {});
+    api<Announcement[]>('/api/announcements').then(data => { if (data.length) setAnnouncements(data); }).catch(() => {});
+    api<SiteSettings>('/api/settings').then(data => { if (data) setSiteSettings(data); }).catch(() => {});
 
     const auth = localStorage.getItem('yt-wallah-admin-auth');
     if (auth === 'true') setIsAdminAuthenticated(true);
   }, []);
 
-  // Persist on change
-  useEffect(() => { if (mounted) saveChannels(channels); }, [channels, mounted]);
-  useEffect(() => { if (mounted) saveBatches(batches); }, [batches, mounted]);
-  useEffect(() => { if (mounted) saveVideos(videos); }, [videos, mounted]);
-  useEffect(() => { if (mounted) saveAnnouncements(announcements); }, [announcements, mounted]);
-
   // Channel CRUD
-  const addChannel = (channel: Omit<Channel, 'id' | 'createdAt'>) => {
-    setChannels(prev => [...prev, { ...channel, id: generateId(), createdAt: new Date().toISOString() } as Channel]);
-  };
-  const updateChannel = (id: string, updates: Partial<Channel>) => {
-    setChannels(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-  const deleteChannel = (id: string) => {
-    setChannels(prev => prev.filter(c => c.id !== id));
-  };
+  const addChannel = useCallback((channel: Omit<Channel, 'id' | 'createdAt'>) => {
+    api<Channel>('/api/channels', { method: 'POST', body: JSON.stringify(channel) })
+      .then(created => setChannels(prev => [...prev, created]))
+      .catch(console.error);
+  }, []);
+  const updateChannel = useCallback((id: string, updates: Partial<Channel>) => {
+    api<Channel>(`/api/channels/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+      .then(updated => setChannels(prev => prev.map(c => c.id === id ? updated : c)))
+      .catch(console.error);
+  }, []);
+  const deleteChannel = useCallback((id: string) => {
+    api(`/api/channels/${id}`, { method: 'DELETE' })
+      .then(() => setChannels(prev => prev.filter(c => c.id !== id)))
+      .catch(console.error);
+  }, []);
 
   // Batch CRUD
-  const addBatch = (batch: Omit<Batch, 'id' | 'createdAt'>) => {
-    setBatches(prev => [...prev, { ...batch, id: generateId(), createdAt: new Date().toISOString() } as Batch]);
-  };
-  const updateBatch = (id: string, updates: Partial<Batch>) => {
-    setBatches(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-  };
-  const deleteBatch = (id: string) => {
-    setBatches(prev => prev.filter(b => b.id !== id));
-  };
+  const addBatch = useCallback((batch: Omit<Batch, 'id' | 'createdAt'>) => {
+    api<Batch>('/api/batches', { method: 'POST', body: JSON.stringify(batch) })
+      .then(created => setBatches(prev => [...prev, created]))
+      .catch(console.error);
+  }, []);
+  const updateBatch = useCallback((id: string, updates: Partial<Batch>) => {
+    api<Batch>(`/api/batches/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+      .then(updated => setBatches(prev => prev.map(b => b.id === id ? updated : b)))
+      .catch(console.error);
+  }, []);
+  const deleteBatch = useCallback((id: string) => {
+    api(`/api/batches/${id}`, { method: 'DELETE' })
+      .then(() => setBatches(prev => prev.filter(b => b.id !== id)))
+      .catch(console.error);
+  }, []);
 
   // Video CRUD
-  const addVideo = (video: Omit<Video, 'id' | 'createdAt'>) => {
-    setVideos(prev => [...prev, { ...video, id: generateId(), createdAt: new Date().toISOString() } as Video]);
-  };
-  const updateVideo = (id: string, updates: Partial<Video>) => {
-    setVideos(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
-  };
-  const deleteVideo = (id: string) => {
-    setVideos(prev => prev.filter(v => v.id !== id));
-  };
+  const addVideo = useCallback((video: Omit<Video, 'id' | 'createdAt'>) => {
+    api<Video>('/api/videos', { method: 'POST', body: JSON.stringify(video) })
+      .then(created => setVideos(prev => [...prev, created]))
+      .catch(console.error);
+  }, []);
+  const updateVideo = useCallback((id: string, updates: Partial<Video>) => {
+    api<Video>(`/api/videos/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+      .then(updated => setVideos(prev => prev.map(v => v.id === id ? updated : v)))
+      .catch(console.error);
+  }, []);
+  const deleteVideo = useCallback((id: string) => {
+    api(`/api/videos/${id}`, { method: 'DELETE' })
+      .then(() => setVideos(prev => prev.filter(v => v.id !== id)))
+      .catch(console.error);
+  }, []);
 
   // Announcement CRUD
-  const addAnnouncement = (ann: Omit<Announcement, 'id' | 'createdAt'>) => {
-    setAnnouncements(prev => [...prev, { ...ann, id: generateId(), createdAt: new Date().toISOString() } as Announcement]);
-  };
-  const updateAnnouncement = (id: string, updates: Partial<Announcement>) => {
-    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-  };
-  const deleteAnnouncement = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-  };
+  const addAnnouncement = useCallback((ann: Omit<Announcement, 'id' | 'createdAt'>) => {
+    api<Announcement>('/api/announcements', { method: 'POST', body: JSON.stringify(ann) })
+      .then(created => setAnnouncements(prev => [...prev, created]))
+      .catch(console.error);
+  }, []);
+  const updateAnnouncement = useCallback((id: string, updates: Partial<Announcement>) => {
+    api<Announcement>(`/api/announcements/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+      .then(updated => setAnnouncements(prev => prev.map(a => a.id === id ? updated : a)))
+      .catch(console.error);
+  }, []);
+  const deleteAnnouncement = useCallback((id: string) => {
+    api(`/api/announcements/${id}`, { method: 'DELETE' })
+      .then(() => setAnnouncements(prev => prev.filter(a => a.id !== id)))
+      .catch(console.error);
+  }, []);
 
   // Settings
-  const updateSiteSettings = (settings: Partial<SiteSettings>) => {
+  const updateSiteSettings = useCallback((settings: Partial<SiteSettings>) => {
     const newSettings = { ...siteSettings, ...settings };
     setSiteSettings(newSettings);
-    saveSiteSettings(newSettings);
-  };
+    api('/api/settings', { method: 'PATCH', body: JSON.stringify(settings) }).catch(console.error);
+  }, [siteSettings]);
 
   // Admin Auth
   const adminLogin = (email: string, password: string): boolean => {
@@ -153,18 +174,15 @@ export function YTWallahProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('yt-wallah-admin-auth');
   };
 
-  // Reset all data
+  // Reset all data (re-seeds defaults via API)
   const resetToDefaults = () => {
     setChannels(defaultChannels);
     setBatches(defaultBatches);
     setVideos(defaultVideos);
     setAnnouncements(defaultAnnouncements);
     setSiteSettings(defaultSiteSettings);
-    saveChannels(defaultChannels);
-    saveBatches(defaultBatches);
-    saveVideos(defaultVideos);
-    saveAnnouncements(defaultAnnouncements);
-    saveSiteSettings(defaultSiteSettings);
+    // Note: This only resets the in-memory state.
+    // A full DB reset would require a dedicated API endpoint.
   };
 
   return (

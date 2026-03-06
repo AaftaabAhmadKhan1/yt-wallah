@@ -16,6 +16,8 @@ import {
   Play,
   LogOut,
   ChevronDown,
+  UserPlus,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useYTWallah } from '@/contexts/YTWallahContext';
@@ -37,8 +39,10 @@ export default function Navigation() {
   const navLinks = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Channels', href: '/channels', icon: Tv },
+    { name: 'My Channels', href: '/my-channels', icon: UserPlus },
     { name: 'Shorts', href: '/shorts', icon: Flame },
     { name: 'Live', href: '/live', icon: Radio },
+    { name: 'Library', href: '/library', icon: BookOpen },
     { name: 'Announcements', href: '/announcements', icon: Megaphone },
   ];
 
